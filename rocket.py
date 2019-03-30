@@ -8,6 +8,7 @@
 import numpy as np
 import constants
 import math
+from vect import Vector
 
 class Rocket:
     
@@ -19,15 +20,18 @@ class Rocket:
         self.propellant_mass = 284089
         self.burn_time = 253
         # thrust at SL in N
-        self._thrust = 3827e3
+        self._static_thrust = 3827e3
         # specific impulse s
         self.IspVac = 337.8
         self.diameter = 3.81
         self.drag_surface = math.pi * ( self.diameter / 2.0 ) ** 2
         
         self.propellant_mass_left = self.propellant_mass
-        self.position = [0.0, 0.0, 0.0]
-        self.velocity = [0.0, 0.0, 0.0]
+        self.position = Vector() #[0.0, 0.0, 0.0]
+        self.velocity = Vector() # [0.0, 0.0, 0.0]
+        self._thrust = Vector()
+        self._drag = Vector()
+
         #self.acceleration = [0.0, 0.0]
         
         self.exit_area = math.pi * ( 1.4 / 2.0 )**2
@@ -51,14 +55,16 @@ class Rocket:
     def thrust(self, p_external):
         
         if self.out_of_propellant():
-            return [0.0, 0.0, 0.0]
+            self._thrust.zero()
+            return self._thrust
 
         # https://en.wikipedia.org/wiki/Rocket_engine_nozzle
         # F = self.IspVac * 9.81 * self.mass_flow() - self.exit_area * p_external
         
         # Really only valid at sea level, needs improvement from rocket equation.
-        F = self._thrust
-        return [0.0, 0.0, F]
+        self._thrust.zero()
+        self._thrust[2] = self._static_thrust
+        return self._thrust
 
     def drag_coefficient(self):
         # really this is dependent on velocity, see 
@@ -67,16 +73,18 @@ class Rocket:
 
     def drag(self, mass_density):
         
-        velocity = np.linalg.norm( self.velocity )
+        velocity = self.velocity.magnitude()
         if ( velocity == 0.0 ):
-            return [0.0,0.0,0.0]
+            self._drag.zero()
+            return self._drag
 
         #print(velocity)
         f = -0.5 * mass_density * velocity * velocity * self.drag_coefficient() * self.drag_surface
 
-        drag = [ 0,0,0 ]
-        drag[0] = self.velocity[0] / velocity * f
-        drag[1] = self.velocity[1] / velocity * f
-        drag[2] = self.velocity[2] / velocity * f
+        self._drag.assign(self.velocity)
+        self._drag.mult( f / velocity )
+        # self._drag[0] = self.velocity[0] / velocity * f
+        # self._drag[1] = self.velocity[1] / velocity * f
+        # self._drag[2] = self.velocity[2] / velocity * f
 
-        return drag
+        return self._drag

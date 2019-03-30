@@ -28,7 +28,7 @@ from body import Earth
 from rocket import Rocket
 import plots
 import matplotlib.pyplot as plt
-
+from vect import Vector
 
 #
 # This really needs to be moved into a simulator class.
@@ -42,8 +42,8 @@ leo_altitude = 420.0e3
 earth = Earth()
 
 # Basic physics
-plots.plot_accelleration_due_to_mass_to_alt( earth, leo_altitude )
-plots.plot_air_pressure_to_alt(earth, leo_altitude)
+#plots.plot_accelleration_due_to_mass_to_alt( earth, leo_altitude )
+#plots.plot_air_pressure_to_alt(earth, leo_altitude)
 
 # Let's launch a single stage rocket straight up and see what happens.
 r = Rocket()
@@ -78,7 +78,7 @@ for i in range(500000):
     F_drag = r.drag(density)
 
     # if the drag magnitude becomes to big, the airframe will break.    
-    dragMagnitude = np.linalg.norm(F_drag)
+    dragMagnitude = F_drag.magnitude()
     if ( dragMagnitude > 100000):
         print("R.U.D. Rapid Unscheduled Dissambly, too much drag, your rocket broke up in mid flight")
         break
@@ -86,6 +86,7 @@ for i in range(500000):
     # sum Weight, Rocket Thrust and Drag in 3 dimensions.
     Fs = [0,0,0]
     dv = [0,0,0]
+    
     for j in range(3):
         Fs[j] = F_rocket[j] + A_gravity[j] * r.mass() + F_drag[j]          
         dv[j] = dt * Fs[j] / r.mass()    
@@ -134,4 +135,4 @@ ax2 = ax.twinx()
 ax2.plot(time_list, drag_list, 'b')
 ax2.set_ylabel("Drag [kN]")
 
-plt.show()    
+plt.show()
