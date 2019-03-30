@@ -17,11 +17,12 @@
 # 3. Static Thrust [Done]
 # 4. Static Drag [Done]
 # 5. Plotting of altitude and density, see Max-Q and RUD on re-entry to due excessive drag
-#
-# 6. Implement thurst control []
-# 7. Multi Stage []
-# 8. Orbit Calculations []
-# 9. Dynamic Thrust []
+# 6. Implement coordinates [Done]
+# . Give rocket control over its direction []
+# . Implement thurst control []
+# . Multi Stage []
+# . Orbit Calculations []
+# . Dynamic Thrust []
 
 import numpy as np
 from body import Earth
@@ -29,6 +30,7 @@ from rocket import Rocket
 import plots
 import matplotlib.pyplot as plt
 from vect import Vector
+import time
 
 #
 # This really needs to be moved into a simulator class.
@@ -42,11 +44,12 @@ leo_altitude = 420.0e3
 earth = Earth()
 
 # Basic physics
-#plots.plot_accelleration_due_to_mass_to_alt( earth, leo_altitude )
-#plots.plot_air_pressure_to_alt(earth, leo_altitude)
+# plots.plot_accelleration_due_to_mass_to_alt( earth, leo_altitude )
+# plots.plot_air_pressure_to_alt(earth, leo_altitude)
 
 # Let's launch a single stage rocket straight up and see what happens.
 r = Rocket()
+r.position[2] = earth.radius
 
 # Time
 t = 0.0
@@ -59,17 +62,15 @@ time_list = []
 altitude_list = []
 drag_list = [] 
 
+start = time.time()
 # Let's run our simulation
 for i in range(500000):
     
-    # Altitude is stored in the 2nd coordinate of the rocket.
-    alt = r.position[2]
-    
     # gravity depends on altitude!
-    A_gravity = earth.accelleration(alt)
+    A_gravity = earth.accelleration(r.position)
 
     # Valid up to 2500,000 meters
-    P0, density = earth.air_pressure_and_density(alt)
+    P0, density = earth.air_pressure_and_density(r.position)
 
     # rocket thurst depends on altitude    
     F_rocket = r.thrust(P0)
@@ -78,25 +79,35 @@ for i in range(500000):
     F_drag = r.drag(density)
 
     # if the drag magnitude becomes to big, the airframe will break.    
-    dragMagnitude = F_drag.magnitude()
+    dragMagnitude = F_drag.magnitude
     if ( dragMagnitude > 100000):
         print("R.U.D. Rapid Unscheduled Dissambly, too much drag, your rocket broke up in mid flight")
+        print("velocity={} pos={}, drag={}".format(r.velocity, r.position, F_drag))
         break
 
     # sum Weight, Rocket Thrust and Drag in 3 dimensions.
-    Fs = [0,0,0]
-    dv = [0,0,0]
-    
-    for j in range(3):
-        Fs[j] = F_rocket[j] + A_gravity[j] * r.mass() + F_drag[j]          
-        dv[j] = dt * Fs[j] / r.mass()    
-        r.velocity[j] += dv[j]
-        r.position[j] += r.velocity[j] * dt
+
+    # Code below uses less temporary object and is only 3 seconds
+    # faster than readable code which takes 29 seconds.
+    # go with readable, thank you.
+
+    # Fs = Vector(F_rocket) #[0,0,0]
+    # Fs.add( F_drag )
+    # Fs.add( A_gravity.mult(r.mass()))
+    # dv = Fs.mult(dt/r.mass())
+    # r.velocity.add(dv)
+    # r.position.add( r.velocity * dt)
+
+    # Readable!
+    Fs = F_rocket + F_drag + A_gravity * r.mass()
+    dv = Fs * (dt / r.mass())
+    r.velocity += dv
+    r.position += r.velocity * dt
 
     # did we make it back to terra firma?
     # hope we are going slow.
-    if r.position[2] < -1.0:
-        if np.linalg.norm(r.velocity) > 5:            
+    if r.position.magnitude < -1.0:
+        if r.velocity.magnitude > 5:                        
             print("R.U.D. Rapid Unscheduled Dissambly, welcome home!")
         else:
             print("Level: Musk, Mars is next")
@@ -112,12 +123,12 @@ for i in range(500000):
     # keep a list of drag and position so we can plot.
     time_list.append(t)    
     drag_list.append( dragMagnitude / 1000.0 )
-    altitude_list.append(r.position[2]/1000.0)
+    altitude_list.append((r.position.magnitude - earth.radius ) /1000.0)
 
     # next time step!
     t = t + dt
 
-
+print(time.time()-start)
 
 fig = plt.figure()
 

@@ -4,16 +4,20 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+from vect import Vector
 
 def plot_accelleration_due_to_mass_to_alt( body, altitude ):
     altitude_list = []
     gravity_list = []
+    pos = Vector()
+    
 
     steps = 1000
     for i in range(steps):
         alt = i * altitude / steps
+        pos[2] = body.radius + alt
         altitude_list.append( alt )
-        gravity_list.append ( np.linalg.norm(body.accelleration( alt )) )
+        gravity_list.append ( body.accelleration( pos ).magnitude )
 
     fig = plt.figure()
 
@@ -29,12 +33,14 @@ def plot_air_pressure_to_alt( body, altitude ):
     altitude_list = []
     air_pressure_list = []
     density_list = []
+    pos = Vector()
 
     steps = 1000
     for i in range(steps+1):
         alt = i * altitude / ( steps )
+        pos[2] = body.radius + alt
         altitude_list.append( alt )
-        P0, density = body.air_pressure_and_density( alt )
+        P0, density = body.air_pressure_and_density( pos )
         air_pressure_list.append ( P0 )
         density_list.append ( density )
 

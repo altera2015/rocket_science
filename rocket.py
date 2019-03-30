@@ -73,7 +73,7 @@ class Rocket:
 
     def drag(self, mass_density):
         
-        velocity = self.velocity.magnitude()
+        velocity = self.velocity.magnitude
         if ( velocity == 0.0 ):
             self._drag.zero()
             return self._drag

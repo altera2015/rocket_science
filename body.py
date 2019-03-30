@@ -3,7 +3,7 @@ import numpy as np
 import constants
 import math
 import jacchia
-
+from vect import Vector
 
 # Base class for Bodies in space. Like planets, or moons.
 class Body:
@@ -39,14 +39,20 @@ class Body:
 
     # https://en.wikipedia.org/wiki/Newton%27s_law_of_universal_gravitation
     # returns gravity in m/s^2
-    def accelleration(self, altitude):
-        radius = self.__radius + altitude        
-        return [0,0, -( self.__mass * constants.G) / (radius*radius)]
+    def accelleration(self, position):
+        
+        radius = position.magnitude
+        v = Vector( position )
+        a = -( self.__mass * constants.G) / (radius*radius)
+        v.mult( a / position.magnitude )
+        
+        return v
 
 class Earth(Body):
     
     def __init__(self):
         super().__init__(constants.earth_radius, constants.earth_mass, "Earth")
 
-    def air_pressure_and_density(self, altitude):
+    def air_pressure_and_density(self, position):
+        altitude = position.magnitude - self.radius
         return jacchia.air_pressure_and_density(altitude)
