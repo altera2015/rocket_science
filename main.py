@@ -32,6 +32,8 @@ import plots
 import matplotlib.pyplot as plt
 from vect import Vector
 import time
+from pid import PID
+import math
 
 #
 # This really needs to be moved into a simulator class.
@@ -52,6 +54,11 @@ earth = Earth()
 r = Rocket()
 r.position[2] = earth.radius
 
+r.thrust_direction[1] = 0.2
+r.thrust_direction[2] = 1.0
+r.thrust_direction.normalize()
+print(r.thrust_direction)
+
 # Time
 t = 0.0
 
@@ -61,7 +68,9 @@ dt = 0.01
 
 time_list = []
 altitude_list = []
+y_list = []
 drag_list = [] 
+velocity_list = []
 
 start = time.time()
 # Let's run our simulation
@@ -86,22 +95,11 @@ for i in range(500000):
         print("velocity={} pos={}, drag={}".format(r.velocity, r.position, F_drag))
         break
 
-    # sum Weight, Rocket Thrust and Drag in 3 dimensions.
-
-    # Code below uses less temporary objects but is only 3 seconds
-    # faster than readable code which takes 29 seconds.
-    # go with readable, thank you.
-
-    # Fs = Vector(F_rocket)
-    # Fs.add( F_drag )
-    # Fs.add( A_gravity.mult(r.mass()))
-    # dv = Fs.mult(dt/r.mass())
-    # r.velocity.add(dv)
-    # r.position.add( r.velocity * dt)
-
-    # Readable!
+    # Sum Forces: Weight, Rocket Thrust and Drag in 3 dimensions.
     Fs = F_rocket + F_drag + A_gravity * r.mass()
     dv = Fs * (dt / r.mass())
+    
+    # Time step!
     r.velocity += dv
     r.position += r.velocity * dt
 
@@ -125,6 +123,8 @@ for i in range(500000):
     time_list.append(t)    
     drag_list.append( dragMagnitude / 1000.0 )
     altitude_list.append((r.position.magnitude - earth.radius ) /1000.0)
+    y_list.append( 180.0 * r.position.theta / math.pi )
+    velocity_list.append( r.velocity.magnitude )
 
     # next time step!
     t = t + dt
@@ -136,8 +136,8 @@ fig = plt.figure()
 altitude_list = altitude_list
 time_list = time_list
 
-fig.suptitle('Rocket altitude') 
-ax = fig.subplots(1,1)
+fig.suptitle('Rocket altitude vs Time') 
+ax, ax3, velocity_ax = fig.subplots(1,3)
 ax.plot(time_list, altitude_list, 'r')
 ax.set_xlabel("Time [s]")
 ax.set_ylabel("Altitude [km]")
@@ -146,5 +146,19 @@ ax.grid()
 ax2 = ax.twinx()
 ax2.plot(time_list, drag_list, 'b')
 ax2.set_ylabel("Drag [kN]")
+
+
+ax3.plot(y_list, altitude_list, 'r')
+ax3.set_xlabel("Inclination θ (degrees)")
+ax3.set_ylabel("Altitude [km]")
+ax3.grid()
+
+
+velocity_ax.plot(time_list, velocity_list, 'r')
+velocity_ax.set_xlabel("Time [s]")
+velocity_ax.set_ylabel("Velocity [m/s]")
+velocity_ax.grid()
+
+plt.tight_layout()
 
 plt.show()

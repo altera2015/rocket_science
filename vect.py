@@ -49,6 +49,24 @@ class Vector:
         return self._magnitude
 
     """
+    Calculate Theta in ISO system
+    (Inclination)
+    https://en.wikipedia.org/wiki/Spherical_coordinate_system#/media/File:3D_Spherical.svg
+    """
+    @property
+    def theta(self):
+        return math.acos( self._pos[2] / self.magnitude )
+
+    """
+    Calculate Theta in ISO system
+    (Azimuth)
+    https://en.wikipedia.org/wiki/Spherical_coordinate_system#/media/File:3D_Spherical.svg
+    """
+    @property
+    def phi(self):
+        return math.atan2( self._pos[1], self._pos[0] )
+
+    """
     Converts the Carthesian coordinates to spherical system
     """
     @staticmethod
@@ -113,6 +131,9 @@ class Vector:
     """
     def deepcopy(self):
         return Vector(self)
+
+    def normalize(self):
+        self.mult( 1.0 / self.magnitude )
 
     def __mul__(self, factor):
         n = Vector(self)

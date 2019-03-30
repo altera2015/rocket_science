@@ -31,6 +31,7 @@ class Rocket:
         self.velocity = Vector() # [0.0, 0.0, 0.0]
         self._thrust = Vector()
         self._drag = Vector()
+        self.thrust_direction = Vector([0.0, 0.0, 1.0])
 
         #self.acceleration = [0.0, 0.0]
         
@@ -62,9 +63,11 @@ class Rocket:
         # F = self.IspVac * 9.81 * self.mass_flow() - self.exit_area * p_external
         
         # Really only valid at sea level, needs improvement from rocket equation.
-        self._thrust.zero()
-        self._thrust[2] = self._static_thrust
-        return self._thrust
+        #self._thrust.zero()
+        #self._thrust[2] = self._static_thrust
+        #return self._thrust
+        return self.thrust_direction * self._static_thrust
+    
 
     def drag_coefficient(self):
         # really this is dependent on velocity, see 
@@ -83,8 +86,5 @@ class Rocket:
 
         self._drag.assign(self.velocity)
         self._drag.mult( f / velocity )
-        # self._drag[0] = self.velocity[0] / velocity * f
-        # self._drag[1] = self.velocity[1] / velocity * f
-        # self._drag[2] = self.velocity[2] / velocity * f
 
         return self._drag
