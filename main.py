@@ -18,6 +18,7 @@
 # 4. Static Drag [Done]
 # 5. Plotting of altitude and density, see Max-Q and RUD on re-entry to due excessive drag
 # 6. Implement coordinates [Done]
+# . Implement earth rotation
 # . Give rocket control over its direction []
 # . Implement thurst control []
 # . Multi Stage []
@@ -87,11 +88,11 @@ for i in range(500000):
 
     # sum Weight, Rocket Thrust and Drag in 3 dimensions.
 
-    # Code below uses less temporary object and is only 3 seconds
+    # Code below uses less temporary objects but is only 3 seconds
     # faster than readable code which takes 29 seconds.
     # go with readable, thank you.
 
-    # Fs = Vector(F_rocket) #[0,0,0]
+    # Fs = Vector(F_rocket)
     # Fs.add( F_drag )
     # Fs.add( A_gravity.mult(r.mass()))
     # dv = Fs.mult(dt/r.mass())
@@ -128,7 +129,7 @@ for i in range(500000):
     # next time step!
     t = t + dt
 
-print(time.time()-start)
+print("Simulation ran for {} seconds".format(time.time()-start))
 
 fig = plt.figure()
 
