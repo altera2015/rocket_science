@@ -16,6 +16,7 @@ class Rocket:
         # Atlas 5 first stage
         # kg
         self.dry_mass = 21054 + 23000 + 20000 # 23 = 2nd stage, 20 = payload to LEO
+        self.dry_mass = 21054 / 2.20
         # kg
         self.propellant_mass = 284089
         self.burn_time = 253
@@ -27,13 +28,13 @@ class Rocket:
         self.drag_surface = math.pi * ( self.diameter / 2.0 ) ** 2
         
         self.propellant_mass_left = self.propellant_mass
-        self.position = Vector() #[0.0, 0.0, 0.0]
-        self.velocity = Vector() # [0.0, 0.0, 0.0]
+        self.position = Vector()
+        self.velocity = Vector()
         self._thrust = Vector()
         self._drag = Vector()
         self.thrust_direction = Vector([0.0, 0.0, 1.0])
+        self.throttle = 1.0
 
-        #self.acceleration = [0.0, 0.0]
         
         self.exit_area = math.pi * ( 1.4 / 2.0 )**2
     
@@ -43,12 +44,12 @@ class Rocket:
     def burn(self, dt):
         self.propellant_mass_left -= self.mass_flow() * dt
 
-    def mass_flow(self, throttle = 1.0):
+    def mass_flow(self):
 
         if self.out_of_propellant():
             return 0.0
 
-        return throttle * self.propellant_mass / self.burn_time
+        return self.throttle * self.propellant_mass / self.burn_time
 
     def out_of_propellant(self):
         return self.propellant_mass_left < 0
@@ -66,7 +67,7 @@ class Rocket:
         #self._thrust.zero()
         #self._thrust[2] = self._static_thrust
         #return self._thrust
-        return self.thrust_direction * self._static_thrust
+        return self.thrust_direction * ( self._static_thrust * self.throttle )
     
 
     def drag_coefficient(self):
