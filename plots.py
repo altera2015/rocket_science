@@ -5,6 +5,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from vect import Vector
+import math
 
 def plot_accelleration_due_to_mass_to_alt( body, altitude ):
     altitude_list = []
@@ -59,3 +60,52 @@ def plot_air_pressure_to_alt( body, altitude ):
     ax2.set_yscale('log')
     ax.grid()
     plt.show()        
+
+
+def status_plot(time_list, altitude_list, drag_list, velocity_list, theta_list):
+    fig = plt.figure(figsize=(10,5))
+
+    fig.suptitle('Rocket Statistics') 
+    alt_and_drag_ax, velocity_ax, theta_ax = fig.subplots(1,3)
+
+    alt_and_drag_ax.plot(time_list, altitude_list, 'r')
+    alt_and_drag_ax.set_xlabel("Time [s]")
+    alt_and_drag_ax.set_ylabel("Altitude [km]")
+    alt_and_drag_ax.grid()
+
+    alt_and_drag_ax2 = alt_and_drag_ax.twinx()
+    alt_and_drag_ax2.plot(time_list, drag_list, 'b')
+    alt_and_drag_ax2.set_ylabel("Drag [kN]")
+
+
+    theta_ax.plot(theta_list, altitude_list, 'r')
+    theta_ax.set_xlabel("Azimuth φ (degrees)")
+    theta_ax.set_ylabel("Altitude [km]")
+    theta_ax.grid()
+
+
+    velocity_ax.plot(time_list, velocity_list, 'r')
+    velocity_ax.set_xlabel("Time [s]")
+    velocity_ax.set_ylabel("Velocity [m/s]")
+    velocity_ax.grid()
+
+    plt.tight_layout()
+
+    plt.show()
+
+def plot_trajectory(body, altitude_list, phi_list):
+
+    fig = plt.figure(figsize=(10,10))
+    ax = plt.subplot(1,1, 1, projection='polar')
+    ax.plot(phi_list * math.pi / 180.0 , altitude_list, 'r-')
+    #fig.suptitle('Rocket Path') 
+    #ax = fig.subplots(1,1)
+    
+    
+    angles = np.array(range(360)) * math.pi  / 180.0
+    height = np.full((360,), body.radius)
+    ax.plot(angles, height, 'bo')
+
+    
+    plt.tight_layout()
+    plt.show()
