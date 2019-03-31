@@ -67,7 +67,7 @@ class Vector:
         return math.atan2( self._pos[1], self._pos[0] )
 
     """
-    Converts the Carthesian coordinates to spherical system
+    Converts the Cartesian coordinates to spherical system
     """
     @staticmethod
     def toSpherical( vect ):
@@ -77,7 +77,7 @@ class Vector:
         return [r,theta, phi]
 
     """
-    Converts the coordinates from spherical to Carthesian
+    Converts the coordinates from spherical to Cartesian
     """
     @staticmethod
     def toCartesian( vect ):
@@ -133,7 +133,7 @@ class Vector:
         return Vector(self)
 
     def normalize(self):
-        self.mult( 1.0 / self.magnitude )
+        return self.mult( 1.0 / self.magnitude )        
 
     def __mul__(self, factor):
         n = Vector(self)
