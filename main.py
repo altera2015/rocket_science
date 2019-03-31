@@ -28,6 +28,7 @@
 import numpy as np
 from body import Earth
 from rocket import Rocket
+from atlas import AtlasV401
 import plots
 import matplotlib.pyplot as plt
 from vect import Vector
@@ -36,33 +37,7 @@ from pid import PID
 import math
 
 
-def run_simulation(body):
-    
-    #
-    # This really needs to be moved into a simulator class.
-    # experimenting for now.
-    #
-
-    # low earth orbit [m]
-    leo_altitude = 420.0e3
-
-    # Let's create our main body that we're trying to get into orbit around
-    # earth = Earth()
-
-    # Basic physics
-    # plots.plot_accelleration_due_to_mass_to_alt( earth, leo_altitude )
-    # plots.plot_air_pressure_to_alt(earth, leo_altitude)
-
-    # Let's launch a single stage rocket straight up and see what happens.
-    r = Rocket()
-    r.position[0] = 0
-    r.position[1] = body.radius
-    r.position[2] = 0
-
-    r.thrust_direction[0] = 0.0
-    r.thrust_direction[1] = 1.0 # start launching straight up!
-    r.thrust_direction[2] = 0.0
-    r.thrust_direction.normalize()
+def run_simulation(body, rocket, target_orbit):
    
     # Time
     t = 0.0
@@ -74,50 +49,91 @@ def run_simulation(body):
     time_list = []
     altitude_list = []
     phi_list = []
-    drag_list = [] 
+    drag_list = []
+    thrust_list = []
     velocity_list = []
+    mass_list = []
 
     start = time.time()
+    
+    rocket.throttle = 1.0
+
     # Let's run our simulation
-    for i in range(500000):
+    for i in range(75000):
         
         # gravity depends on altitude!
-        A_gravity = body.accelleration(r.position)
+        A_gravity = body.accelleration(rocket.position)
 
         # Valid up to 2500,000 meters
-        P0, density = body.air_pressure_and_density(r.position)
+        P0, density = body.air_pressure_and_density(rocket.position)
 
-        # really crude pitch control. Once above 100k. start pushing along the surface of the earth
-        if r.position.magnitude > 100000 + body.radius:        
-            r.thrust_direction = Vector([-r.position[1], r.position[0],0]).normalize()
-            r.throttle = 0.5
+        # AUTO PILOT
+        # really crude pitch control. Once above target_orbit. start pushing along the surface of the earth        
 
-
-        # rocket thurst depends on altitude    
-        F_rocket = r.thrust(P0)
+        # First find orientation of the rocket. We assume this is always
+        # along the surface of the earth, which is the tangent of the 
+        # position vector.
+        orientation = Vector([-rocket.position[1], rocket.position[0],0])
         
-        # drag due to atmosphere
-        F_drag = r.drag(density)
+        # In order to rotate the force vector 'upwards' a certain degree
+        # we need to find the rotation axis. This is the vector orthogonal
+        # to the position and the orientation.
+        rotation_axis = rocket.position.cross( orientation ).normalize()
+
+        # High tech auto pilot
+        # Straight up first, then abruptly point force vector along the
+        # surface of the earth at 200km up. Then when orbital velocity is
+        # acchieved power down.
+        delta = 1.0
+        if rocket.position.magnitude > body.radius + 1e3:
+            delta = 0.5
+        if rocket.position.magnitude > body.radius + 200e3:
+             delta = 0.1
+
+        # should really test for velocity parallel with Earth.
+        if rocket.velocity.magnitude > 8672.0:
+            rocket.throttle = 0.0
+
+        # Negative rotation means point the force vector out from earth
+        # along the surface.
+        orientation.rotate(  - delta * math.pi/2.0, rotation_axis )
+        rocket.set_orientation(orientation.normalize())
+
+        # Force from rocket thurst depends on altitude    
+        F_rocket = rocket.thrust(P0)
+        
+        # Force from drag due to atmosphere
+        F_drag = rocket.drag(density)
+
+        # Force from Gravity
+        F_gravity = A_gravity * rocket.mass()
+        
+        # Make sure our airframe can handle!
+        F_rocket_mag = F_rocket.magnitude
+        F_drag_mag = F_drag.magnitude
+        F_gravity_mag = F_gravity.magnitude
+        force_mag_list = [F_rocket_mag, F_drag_mag, F_gravity_mag]
 
         # if the drag magnitude becomes too big, the airframe will break.    
-        dragMagnitude = F_drag.magnitude
-        if ( dragMagnitude > 100000):
-            print("R.U.D. Rapid Unscheduled Dissambly, too much drag, your rocket broke up in mid flight")
-            print("velocity={} pos={}, drag={}".format(r.velocity, r.position, F_drag))
+        maxForce = sum( force_mag_list )
+        if ( maxForce > rocket.max_forces ):
+            print("R.U.D. Rapid Unscheduled Dissambly, too much forces, your rocket broke up in mid flight, iteration {}".format(i))
+            print("velocity={} altitude={}, max_force={}, force_list={} delta={}".format(rocket.velocity, rocket.position.magnitude, maxForce, force_mag_list, delta))
             break
 
         # Sum Forces: Weight, Rocket Thrust and Drag in 3 dimensions.
-        Fs = F_rocket + F_drag + A_gravity * r.mass()
-        dv = Fs * (dt / r.mass())
+        Fs = F_rocket + F_drag + F_gravity
+        dv = Fs * (dt / rocket.mass())
         
         # Time step!
-        r.velocity += dv
-        r.position += r.velocity * dt
+        rocket.velocity += dv
+        rocket.position += rocket.velocity * dt
 
         # did we make it back to terra firma?
         # hope we are going slow.
-        if r.position.magnitude < body.radius - 1:
-            if r.velocity.magnitude > 5:                        
+        if rocket.position.magnitude < body.radius - 1:
+            print("Current Forces = {}".format(force_mag_list))
+            if rocket.velocity.magnitude > 5:
                 print("R.U.D. Rapid Unscheduled Dissambly, welcome home!")
             else:
                 print("Level: Musk, Mars is next")
@@ -125,31 +141,39 @@ def run_simulation(body):
 
         # debug print
         if i%5000==0:
-            print("velocity={} pos={}, drag={}".format(r.velocity, r.position, F_drag))
+            print("velocity={} pos={}, drag={} delta={}".format(rocket.velocity, rocket.position.magnitude, F_drag, delta))
 
-        # burn a little fuel
-        r.burn(dt)    
+        # step the rocket time ahead, this burns the fuel and potentially does stage sep.
+        rocket.time_step(dt, t)
         
-        # keep a list of drag and position so we can plot.
+        # keep a list of maxForce and position so we can plot.
         time_list.append(t)    
-        drag_list.append( dragMagnitude / 1000.0 )
-        altitude_list.append((r.position.magnitude - body.radius ) / 1000.0)
-        phi_list.append( 180.0 * r.position.phi / math.pi )
-        velocity_list.append( r.velocity.magnitude )
-        
+        drag_list.append( ( F_drag_mag  ) / 1000.0 )
+        thrust_list.append( (F_rocket_mag ) / 1000.0 )
+        altitude_list.append((rocket.position.magnitude - body.radius ) / 1000.0)
+        phi_list.append( 180.0 * rocket.position.phi / math.pi )
+        velocity_list.append( rocket.velocity.magnitude )
+        mass_list.append(rocket.mass())
         # next time step!
         t = t + dt
 
     print("Simulation ran for {} seconds".format(time.time()-start))
 
-    return time_list, altitude_list, drag_list, velocity_list, phi_list
+    return time_list, altitude_list, drag_list, velocity_list, phi_list, thrust_list, mass_list
+
+
 
 recalculate = True
 earth = Earth()
 
 if recalculate:
-    time_list, altitude_list, drag_list, velocity_list, phi_list = run_simulation(earth)    
-    np.savetxt('launch.txt', np.c_[time_list, altitude_list, drag_list, velocity_list, phi_list], header='time, alt, drag, velocity, phi', delimiter=',')
+    
+    # 8000kg to LEO please.
+    rocket = AtlasV401(8.0e3, Vector([0.0, earth.radius, 0.0]) )
+    rocket.velocity = earth.surface_speed(rocket.position)
+
+    time_list, altitude_list, drag_list, velocity_list, phi_list, thrust_list, mass_list = run_simulation2(earth, rocket, 150e3)
+    np.savetxt('launch.txt', np.c_[time_list, altitude_list, drag_list, velocity_list, phi_list, thrust_list, mass_list], header='time, alt, drag, velocity, phi, thrust, mass_list', delimiter=',')
     altitude_list = np.array(altitude_list)
     phi_list = np.array(phi_list)
 else:
@@ -159,9 +183,11 @@ else:
     drag_list = C[:,2]
     velocity_list = C[:,3]    
     phi_list = C[:,4]
+    thrust_list = C[:,5]
+    mass_list = C[:,6]
 
 
-plots.status_plot(time_list, altitude_list, drag_list, velocity_list, phi_list)
+plots.status_plot(time_list, altitude_list, drag_list, velocity_list, phi_list, thrust_list, mass_list)
 plots.plot_trajectory(earth, altitude_list * 1000 + earth.radius, phi_list)
 
 

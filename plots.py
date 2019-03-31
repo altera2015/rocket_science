@@ -62,7 +62,7 @@ def plot_air_pressure_to_alt( body, altitude ):
     plt.show()        
 
 
-def status_plot(time_list, altitude_list, drag_list, velocity_list, theta_list):
+def status_plot(time_list, altitude_list, drag_list, velocity_list, phi_list, thrust_list, mass_list):
     fig = plt.figure(figsize=(10,5))
 
     fig.suptitle('Rocket Statistics') 
@@ -75,10 +75,12 @@ def status_plot(time_list, altitude_list, drag_list, velocity_list, theta_list):
 
     alt_and_drag_ax2 = alt_and_drag_ax.twinx()
     alt_and_drag_ax2.plot(time_list, drag_list, 'b')
-    alt_and_drag_ax2.set_ylabel("Drag [kN]")
+    alt_and_drag_ax2.plot(time_list, thrust_list, 'g')
+    alt_and_drag_ax2.set_ylabel("Force [kN]")
+    #alt_and_drag_ax2.set_yscale('log')
 
 
-    theta_ax.plot(theta_list, altitude_list, 'r')
+    theta_ax.plot(phi_list, altitude_list, 'r')
     theta_ax.set_xlabel("Azimuth φ (degrees)")
     theta_ax.set_ylabel("Altitude [km]")
     theta_ax.grid()
@@ -88,6 +90,10 @@ def status_plot(time_list, altitude_list, drag_list, velocity_list, theta_list):
     velocity_ax.set_xlabel("Time [s]")
     velocity_ax.set_ylabel("Velocity [m/s]")
     velocity_ax.grid()
+
+    velocity_ax2 = velocity_ax.twinx()
+    velocity_ax2.plot(time_list, mass_list, 'b')    
+    velocity_ax2.set_ylabel("Mass [kg]")
 
     plt.tight_layout()
 

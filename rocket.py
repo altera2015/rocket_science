@@ -11,81 +11,139 @@ import math
 from vect import Vector
 
 class Rocket:
+
+    """
+    Rocket Constructor
+    takes a list of stages
     
-    def __init__(self):
-        # Atlas 5 first stage
-        # kg
-        self.dry_mass = 21054 + 23000 + 20000 # 23 = 2nd stage, 20 = payload to LEO
-        self.dry_mass = 21054 / 2.20
-        # kg
-        self.propellant_mass = 284089
-        self.burn_time = 253
-        # thrust at SL in N
-        self._static_thrust = 3827e3
-        # specific impulse s
-        self.IspVac = 337.8
-        self.diameter = 3.81
-        self.drag_surface = math.pi * ( self.diameter / 2.0 ) ** 2
+    Rocket currently is simulated as a point mass. Real geometry will be later.
+
+    Only simple stacked stages for now. Side boosters in next iteration.
+
+    max_force = maximum force the airframe can handle.
+    position = cartesian coordinates ( body center is 0,0 )
+    velocity = orientation, please face rocket pointing up!
+    """
+    def __init__(self, stages, max_force, position, orientation = None):
+
+        self.__stages = stages
+        self.__current_stage = 0
+        self.__max_force = max_force
+        self.__position = position
         
-        self.propellant_mass_left = self.propellant_mass
-        self.position = Vector()
-        self.velocity = Vector()
-        self._thrust = Vector()
-        self._drag = Vector()
-        self.thrust_direction = Vector([0.0, 0.0, 1.0])
-        self.throttle = 1.0
 
+        if orientation == None:
+            # pick orientation orthogonal to surface.
+            self.__orientation = self.__position.deepcopy().normalize()            
+        else:
+            self.__orientation = orientation
+
+        self.__velocity = Vector()
+        self.__drag = Vector()
+        self.__thrust = Vector()
+        self.__throttle = 0.0
         
-        self.exit_area = math.pi * ( 1.4 / 2.0 )**2
-    
-    def mass(self):
-        return self.dry_mass + self.propellant_mass_left
 
-    def burn(self, dt):
-        self.propellant_mass_left -= self.mass_flow() * dt
+    @property
+    def max_forces(self):
+        return self.__max_force
 
-    def mass_flow(self):
+    @property
+    def position(self):
+        return self.__position
 
-        if self.out_of_propellant():
-            return 0.0
+    @position.setter
+    def position(self, value):
+        self.__position = value
 
-        return self.throttle * self.propellant_mass / self.burn_time
+    @property
+    def velocity(self):
+        return self.__velocity
 
-    def out_of_propellant(self):
-        return self.propellant_mass_left < 0
-
-    def thrust(self, p_external):
-        
-        if self.out_of_propellant():
-            self._thrust.zero()
-            return self._thrust
-
-        # https://en.wikipedia.org/wiki/Rocket_engine_nozzle
-        # F = self.IspVac * 9.81 * self.mass_flow() - self.exit_area * p_external
-        
-        # Really only valid at sea level, needs improvement from rocket equation.
-        #self._thrust.zero()
-        #self._thrust[2] = self._static_thrust
-        #return self._thrust
-        return self.thrust_direction * ( self._static_thrust * self.throttle )
+    @velocity.setter
+    def velocity(self, value):
+        self.__velocity = value
     
 
     def drag_coefficient(self):
-        # really this is dependent on velocity, see 
-        # https://space.stackexchange.com/questions/12649
+        # really this is dependent on velocity and vehicle configuration 
+        # see https://space.stackexchange.com/questions/12649
         return 0.30
 
-    def drag(self, mass_density):
-        
-        velocity = self.velocity.magnitude
+
+    def drag(self, atmosphere_mass_density):
+
+        # find the wides part of the rocket and
+        # use that for drag calculations
+        max_drag_surface = 0.0
+        for stage in self.__stages:
+            if not stage.jettisoned and stage.drag_surface >= max_drag_surface:
+                max_drag_surface = stage.drag_surface
+
+        # Get velocity
+        velocity = self.__velocity.magnitude
+
+        # No speed, no drag!
         if ( velocity == 0.0 ):
-            self._drag.zero()
-            return self._drag
+            self.__drag.zero()
+            return self.__drag
+        
+        # Calculate drag depends on atmosphere of course
+        f = -0.5 * atmosphere_mass_density * velocity * velocity * self.drag_coefficient() * max_drag_surface
+        
+        # Force is directed against the velocity vector.
+        return self.__drag.assign(self.velocity).mult(f / velocity)
+        
 
-        #print(velocity)
-        f = -0.5 * mass_density * velocity * velocity * self.drag_coefficient() * self.drag_surface
+    def mass(self):
 
-        self._drag.assign(self.velocity)
-        self._drag.mult( f / velocity )
+        mass = 0.0
+        for stage in self.__stages:
+            if not stage.jettisoned:
+                mass += stage.mass
 
-        return self._drag
+        return mass
+
+
+    def thrust(self, p_external):
+
+        # Only the lowest stage can be active at any time for now.
+        # Once we get multiple stages running at the same time 
+        # this will change a bit.
+        stage = self.__stages[self.__current_stage] 
+        
+        if stage.propellant_mass <= 0.0:
+            self.__thrust.zero()
+            return self.__thrust
+
+        
+        F = stage.thrust(p_external)        
+        return self.__thrust.assign(self.__orientation).mult(F)        
+
+    def time_step(self, dt, t):
+        
+        stage = self.__stages[self.__current_stage]
+        
+        propellant_left = stage.burn(dt)
+        if propellant_left <= 0.0 and stage.jettison_after_use and self.__current_stage < len(self.__stages) - 1:
+            print("Staging! {} jettisoning {}, next stage = {}".format(t, self.__stages[self.__current_stage].name, self.__stages[self.__current_stage+1].name))
+            self.__current_stage = self.__current_stage + 1
+            stage.jettisoned = True
+            self.__stages[self.__current_stage].throttle = self.__throttle
+            print("Force from stage {} = {}".format(self.__stages[self.__current_stage].name, self.__stages[self.__current_stage].thrust(0.0)))
+            
+
+    @property
+    def throttle(self):
+        return self.__throttle
+
+    @throttle.setter
+    def throttle(self, value):
+        self.__throttle = value
+        stage = self.__stages[self.__current_stage]
+        stage.throttle = value
+
+    # Once we go away from point source we can calculate 
+    # orientation based on forces. For now fake it!
+    def set_orientation(self, orientation):
+        self.__orientation = orientation

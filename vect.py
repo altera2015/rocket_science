@@ -44,8 +44,8 @@ class Vector:
     """
     @property
     def magnitude(self):
-        if self._magnitude == None:
-            self._magnitude = np.linalg.norm(self._pos)
+        #if self._magnitude == None:
+        self._magnitude = np.linalg.norm(self._pos)
         return self._magnitude
 
     """
@@ -132,8 +132,65 @@ class Vector:
     def deepcopy(self):
         return Vector(self)
 
-    def normalize(self):
-        return self.mult( 1.0 / self.magnitude )        
+    """
+    Normalize the vector to length (magnitude) 1
+    """
+    def normalize(self):        
+        self.mult( 1.0 / self.magnitude )
+        self._magnitude = 1.0
+        return self
+
+    """
+    Rotate the vector around axis for angle radians
+    """
+    def rotate(self, angle, axis):
+        self._magnitude = None
+        axis.normalize()
+
+        q0 = math.cos(angle/2.0) 
+        q1 = math.sin(angle/2.0) * axis[0]
+        q2 = math.sin(angle/2.0) * axis[1]
+        q3 = math.sin(angle/2.0) * axis[2]
+
+        Q = np.zeros((3,3))
+
+        q02 = q0**2
+        q12 = q1**2
+        q22 = q2**2
+        q32 = q3**2
+
+        Q[0,0] = q02 + q12 - q22 - q32
+        Q[1,1] = q02 - q12 + q22 - q32
+        Q[2,2] = q02 - q12 - q22 + q32
+        
+        Q[0,1] = 2.0 * ( q1*q2 - q0*q3 )
+        Q[0,2] = 2.0 * ( q1*q3 + q0*q2 )
+
+        Q[1,0] = 2.0 * ( q1*q2 + q0*q3 )
+        Q[1,2] = 2.0 * ( q2*q3 - q0*q1 )
+
+        Q[2,0] = 2.0 * ( q1*q3 - q0*q2 )
+        Q[2,1] = 2.0 * ( q2*q3 + q0*q1 )
+
+        u = np.array(self._pos)
+
+        u2 = Q.dot( u )
+
+        self._pos[0] = u2[0]
+        self._pos[1] = u2[1]
+        self._pos[2] = u2[2]
+
+        return self
+
+    """
+    Calculate cross product. Creates a new vector without modifying current.
+    """    
+    def cross(self, other):
+        return Vector([
+            self[1] * other[2] - self[2] * other[1],
+            self[2] * other[0] - self[0] * other[2],
+            self[0] * other[1] - self[1] * other[0]
+        ])
 
     def __mul__(self, factor):
         n = Vector(self)
@@ -220,6 +277,69 @@ class VectorUnitTest(unittest.TestCase):
         self.assertTrue( a.magnitude == math.sqrt(14.0) )
         a = a * 2.0
         self.assertTrue( a.magnitude == math.sqrt(56.0) )
+
+    def test_rotate1(self):
+
+        axis = Vector([0.0,0.0,1.0])
+        a = Vector([1.0,0.0,0.0])
+        b = Vector([0.0,1.0,0.0])
+
+        a.rotate( 90 * math.pi / 180.0, axis)
+        self.assertTrue(a==b)
+
+    def test_rotate2(self):
+
+        axis = Vector([0.0,0.0,1.0])
+        a = Vector([1.0,0.0,0.0])
+        b = Vector([0.0,-1.0,0.0])
+
+        a.rotate( -90 * math.pi / 180.0, axis)
+        self.assertTrue(a==b)
+
+
+    def test_rotate3(self):
+
+        axis = Vector([0.0,1.0,0.0])
+        a = Vector([1.0,0.0,0.0])
+        b = Vector([0.0,0.0,-1.0])
+
+        a.rotate( 90 * math.pi / 180.0, axis)
+        self.assertTrue(a==b)
+
+    def test_rotate4(self):
+
+        axis = Vector([1.0,0.0,0.0])
+        a = Vector([0.0,1.0,0.0])
+        b = Vector([0.0,0.0,1.0])
+
+        a.rotate( 90 * math.pi / 180.0, axis)
+        self.assertTrue(a==b)
+
+    def test_rotate5(self):
+
+        axis = Vector([1.0,1.0,1.0])
+        a = Vector([1.0,0.0,0.0])
+        b = Vector([0.33333333333333337,0.9106836025229592,-0.24401693585629242])        
+        a.rotate( 90 * math.pi / 180.0, axis)        
+        self.assertTrue(a==b)
+
+    def test_perpendicular1(self):
+        
+        a = Vector([1.0,0.0,0.0])
+        b = Vector([0.0,1.0,0.0])
+        c = Vector([0.0,0.0,1.0])
+        d = a.cross(b)
+        self.assertTrue(c == d)
+
+
+    def test_perpendicular2(self):
+        
+        a = Vector([0.0,0.0,1.0])
+        b = Vector([0.0,1.0,0.0])
+        c = Vector([-1.0,0.0,0.0])
+        d = a.cross(b)
+        self.assertTrue(c == d)
+
 
 
 if __name__ == '__main__':
