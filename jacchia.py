@@ -34,13 +34,17 @@ def _interpolate(altitude, ra, rb, columns=[1,8,9]):
 # returns the air pressure based on the static Jacchia 1977 data.
 # Input: altitude is in meters.
 # Output: [Pressure in Pascal, density kg/m3.]
+__warned = False
 def air_pressure_and_density(altitude):
+    global __warned
     altitude/=1000.0
     # the 8th column holds the log_10 of the molecule density in one cubic meter.
 
-    entries = len(data)
+    entries = len(data)    
     if altitude > data[entries-1][0]:
-        print("Warning going over max altitude for pressure estimates.")
+        if not __warned:
+            print("Warning going over max altitude for pressure estimates.")
+            __warned = True
         altitude = data[entries-1][0]
 
     previous = data[0]
