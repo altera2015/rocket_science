@@ -172,7 +172,7 @@ if recalculate:
     rocket = AtlasV401(8.0e3, Vector([0.0, earth.radius, 0.0]) )
     rocket.velocity = earth.surface_speed(rocket.position)
 
-    time_list, altitude_list, drag_list, velocity_list, phi_list, thrust_list, mass_list = run_simulation2(earth, rocket, 150e3)
+    time_list, altitude_list, drag_list, velocity_list, phi_list, thrust_list, mass_list = run_simulation(earth, rocket, 150e3)
     np.savetxt('launch.txt', np.c_[time_list, altitude_list, drag_list, velocity_list, phi_list, thrust_list, mass_list], header='time, alt, drag, velocity, phi, thrust, mass_list', delimiter=',')
     altitude_list = np.array(altitude_list)
     phi_list = np.array(phi_list)
